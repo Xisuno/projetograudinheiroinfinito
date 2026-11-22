@@ -19,6 +19,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Locate tweak sources
+        run: |
+          MK=$(grep -rl --include=Makefile "TWEAK_NAME = ProjetoGrau2Cash" . | head -1 || true)
+          if [ -z "$MK" ]; then
+            echo "Makefile with TWEAK_NAME = ProjetoGrau2Cash not found in the repository. Files present:"
+            find . -path ./.git -prune -o -type f -print
+            exit 1
+          fi
+          DIR=$(dirname "$MK")
+          for f in Tweak.mm Config.h Logic.h control; do
+            [ -f "$DIR/$f" ] || { echo "Missing $DIR/$f"; find . -path ./.git -prune -o -type f -print; exit 1; }
+          done
+          echo "TWEAK_DIR=$DIR" >> "$GITHUB_ENV"
+          echo "Tweak sources in: $DIR"
+
       - name: Validate inputs
         env:
           BUNDLE_ID: ${{ inputs.bundle_id }}
@@ -38,15 +53,20 @@ jobs:
       - name: Generate injection filter
         env:
           BUNDLE_ID: ${{ inputs.bundle_id }}
-        run: sed "s/@BUNDLE_ID@/${BUNDLE_ID}/" ProjetoGrau2Cash.plist.in > ProjetoGrau2Cash.plist
+        run: |
+          cd "$TWEAK_DIR"
+          printf '{ Filter = { Bundles = ( "%s" ); }; }\n' "$BUNDLE_ID" > ProjetoGrau2Cash.plist
+          cat ProjetoGrau2Cash.plist
 
       - name: Build
         env:
           ARCHS_IN: ${{ inputs.archs }}
-        run: gmake clean package FINALPACKAGE=1 ARCHS="$ARCHS_IN"
+        run: |
+          cd "$TWEAK_DIR"
+          gmake clean package FINALPACKAGE=1 ARCHS="$ARCHS_IN"
 
       - uses: actions/upload-artifact@v4
         with:
           name: ProjetoGrau2Cash-deb
-          path: packages/*.deb
+          path: ${{ env.TWEAK_DIR }}/packages/*.deb
           if-no-files-found: error
