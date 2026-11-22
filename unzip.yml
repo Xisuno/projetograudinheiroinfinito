@@ -1,0 +1,64 @@
+name: Unzip into Repository
+
+# The zip's internal top-level directory is preserved as-is.
+# If the zip already contains pg3d_tweak/ internally, extract to repo root (destination=.)
+# so the result is repo_root/pg3d_tweak/ — not repo_root/pg3d_tweak/pg3d_tweak/.
+on:
+  workflow_dispatch:
+    inputs:
+      zip_path:
+        description: 'Repo-relative path to the .zip file (e.g. pg3d_cheat_mc1h.zip)'
+        required: true
+        default: 'pg3d_cheat_mc1h.zip'
+      destination:
+        description: 'Extraction root — use . if the zip already contains its own top-level folder'
+        required: true
+        default: '.'
+      commit_message:
+        description: 'Commit message'
+        required: false
+        default: 'ci: unzip cheat sources into repo [mc1h]'
+
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Validate zip exists
+        run: |
+          if [ ! -f "${{ github.event.inputs.zip_path }}" ]; then
+            echo "ERROR: zip not found at ${{ github.event.inputs.zip_path }}"
+            exit 1
+          fi
+          echo "=== Zip top-level entries ==="
+          unzip -l "${{ github.event.inputs.zip_path }}" | awk '{print $4}' \
+            | grep -v '^$\|^Name\|^---' | cut -d/ -f1 | sort -u
+
+      - name: Extract zip
+        run: |
+          DEST="${{ github.event.inputs.destination }}"
+          if [ "$DEST" != "." ]; then
+            mkdir -p "$DEST"
+          fi
+          unzip -o "${{ github.event.inputs.zip_path }}" -d "$DEST"
+          echo "=== Extracted files ==="
+          find "${DEST}" -maxdepth 4 -type f | sort
+
+      - name: Commit extracted contents
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "${{ github.event.inputs.commit_message }}"
+            git push
+          fi
