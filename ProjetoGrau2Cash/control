@@ -1,0 +1,9 @@
+Package: com.mc1h.projetograu2cash
+Name: Projeto Grau 2 Cash
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: Infinite money for Projeto Grau 2 (AtlasEconomia.Carteira hooks)
+Maintainer: mc1h
+Author: mc1h
+Section: Tweaks
+Depends: mobilesubstrate
