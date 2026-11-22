@@ -1,1 +1,1 @@
-{ Filter = { Bundles = ( "@com.InsanityGroup.ProjetoGrau2" ); }; }
+{ Filter = { Bundles = ( "@BUNDLE_ID@" ); }; }
